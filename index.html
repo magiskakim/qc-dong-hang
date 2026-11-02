@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Quét đóng đơn</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column like a packing-station phone screen; status band on top, checklist below, action bar fixed at bottom */
+:root{
+  --bg:#f3f4f2; --card:#ffffff; --fg:#1c2421; --muted:#5f6b66; --line:#dde2df;
+  --accent:#1f5f8b; --ok:#1d7a46; --ok-bg:#e3f3e9; --err:#b42318; --err-bg:#fde8e6; --warn:#a15c00; --warn-bg:#fff2dc;
+  --f-ui:"Be Vietnam Pro",system-ui,sans-serif; --f-code:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121715; --card:#1b2220; --fg:#e7ece9; --muted:#9aa6a0; --line:#2c3532;
+  --accent:#6fb0de; --ok:#5cc98a; --ok-bg:#163223; --err:#ff8a7e; --err-bg:#3a1b18; --warn:#f0b354; --warn-bg:#352812; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715; --card:#1b2220; --fg:#e7ece9; --muted:#9aa6a0; --line:#2c3532;
+  --accent:#6fb0de; --ok:#5cc98a; --ok-bg:#163223; --err:#ff8a7e; --err-bg:#3a1b18; --warn:#f0b354; --warn-bg:#352812; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:15px;line-height:1.45}
+.wrap{max-width:460px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 120px;display:flex;flex-direction:column;gap:14px}
+.note{font-size:12.5px;color:var(--muted);background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+.note b{color:var(--fg)}
+.status{border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:4px;background:var(--card);border:1px solid var(--line)}
+.status .lbl{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.status .big{font-size:22px;font-weight:800;text-wrap:balance}
+.status.ok{background:var(--ok-bg);border-color:transparent}.status.ok .big{color:var(--ok)}
+.status.err{background:var(--err-bg);border-color:transparent}.status.err .big{color:var(--err)}
+.code{font-family:var(--f-code);font-size:12.5px;color:var(--muted);word-break:break-all}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.status.ok .bar i{background:var(--ok)}
+.scan{display:flex;gap:8px}
+.scan input{flex:1;min-width:0;font:inherit;font-family:var(--f-code);font-size:14px;padding:12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--fg)}
+.scan input:focus{outline:none;border-color:var(--accent)}
+button,.btn{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px 14px;cursor:pointer;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button:focus-visible,.btn:focus-within{outline:2px solid var(--fg);outline-offset:2px}
+.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--line)}
+ul.items{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+ul.items li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 14px;border-top:1px solid var(--line)}
+ul.items li:first-child{border-top:0}
+ul.items .nm{font-weight:600;min-width:0}
+ul.items .ct{font-variant-numeric:tabular-nums;font-weight:800;font-size:17px;align-self:center;grid-row:span 2}
+ul.items li.done{background:var(--ok-bg)} ul.items li.done .ct{color:var(--ok)}
+ul.items li.extra{background:var(--err-bg)} ul.items li.extra .ct,ul.items li.extra .nm{color:var(--err)}
+.sec{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:-6px}
+.log{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.log .e{color:var(--err);font-weight:600}.log .o{color:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{background:var(--card);color:var(--fg);border:1px solid var(--line);font-weight:500;font-size:12.5px;padding:7px 10px}
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ph{background:var(--card);border:1.5px dashed var(--line);border-radius:12px;aspect-ratio:4/3;max-width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:13px;color:var(--muted);cursor:pointer;overflow:hidden;position:relative;text-align:center;padding:6px}
+.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ph input{position:absolute;opacity:0;width:1px;height:1px}
+.actions{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.actions .in{max-width:460px;margin:0 auto;display:flex;gap:8px}
+.actions .in>*{flex:1}
+button:disabled{opacity:.45;cursor:not-allowed}
+#reader{display:none}
+.flash-ok{animation:fo .5s}.flash-err{animation:fe .5s}
+@keyframes fo{from{box-shadow:0 0 0 4px var(--ok)}}@keyframes fe{from{box-shadow:0 0 0 4px var(--err)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+#cam{width:100%;border-radius:14px;overflow:hidden;background:#000;min-height:180px}
+#cam video{width:100%!important;display:block}
+.camrow{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted)}
+.minus{background:transparent;color:var(--muted);border:1px solid var(--line);padding:2px 9px;font-weight:700;border-radius:8px;grid-row:span 2;align-self:center}
+ul.items li{grid-template-columns:1fr auto auto}
+.manual{font-size:12px;padding:6px 8px;background:var(--warn-bg);color:var(--warn);border-radius:8px;grid-column:1/-1;justify-self:start}
+.demo{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="demo" id="demoBanner" hidden>Chế độ thử: dùng đơn mẫu, không gọi Pancake, không lưu gì.</div>
+  <div id="status" class="status"><span class="lbl" id="stLbl">Bước 1/3</span><span class="big" id="stBig">Quét mã trên phiếu</span><span class="code" id="stCode">Đưa mã vạch trên phiếu giao hàng vào khung camera</span><div class="bar"><i id="barI"></i></div></div>
+
+  <div id="cam"></div>
+  <div class="camrow"><span id="camMsg">Đang bật camera…</span><button class="ghost" id="camBtn" style="padding:6px 10px">Tắt camera</button></div>
+
+  <div class="scan">
+    <input id="codeIn" placeholder="Hoặc gõ / dùng súng quét…" autocomplete="off" autocapitalize="characters" enterkeyhint="go">
+  </div>
+
+  <div id="listWrap" hidden>
+    <div class="sec">Món cần có</div>
+    <ul class="items" id="items"></ul>
+  </div>
+
+  <div id="photoWrap" hidden>
+    <div class="sec">Bước 3/3 · Ảnh bằng chứng</div>
+    <div class="photos">
+      <label class="ph" for="p1"><input id="p1" type="file" accept="image/*" capture="environment"><span>📷</span>Flat lay cạnh phiếu</label>
+      <label class="ph" for="p2"><input id="p2" type="file" accept="image/*" capture="environment"><span>📦</span>Hộp đã dán phiếu</label>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
+</div>
+<div class="actions"><div class="in">
+  <button class="ghost" id="resetBtn">Đơn khác</button>
+  <button id="doneBtn" disabled>Hoàn tất đơn</button>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="sku-map.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
